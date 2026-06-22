@@ -1,4 +1,4 @@
-#Planet Drop
+# Planet Drop
 
 Planet Drop is a game based on Suika Game, at first I decided to make a card game but I recognized that for the time give it wouldn't be properly developed and it would not be very popular for it's complexity hence I focused on simplicity and gameplay satisfaction.
 
