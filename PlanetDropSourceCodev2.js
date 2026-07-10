@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght=700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap');
 
         body {
             background-color: #0b0f19;
@@ -215,98 +215,89 @@
     // --- オーディオシステム (Web Audio API) ---
     let audioCtx = null;
 
-    function initAudio() {
-        // ブラウザのセキュリティロックを解除するため、ユーザーのクリック操作時に初期化
+    // 画面のどこかを最初にクリック・タップした際に確実にAudioContextを解除する
+    const unlockAudio = () => {
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
         if (audioCtx.state === 'suspended') {
             audioCtx.resume();
         }
-    }
+        // 1度解除したらイベントリスナーを削除
+        document.removeEventListener('click', unlockAudio);
+        document.removeEventListener('touchstart', unlockAudio);
+    };
 
-    function playDropSound() {
-        if (!audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        
-        osc.type = 'triangle'; // 柔らかいポフッという音
-        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.12);
-        
-        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
-        
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.12);
-    }
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('touchstart', unlockAudio);
 
     function playMergeSound(level) {
-        if (!audioCtx) return;
+        if (!audioCtx || audioCtx.state === 'suspended') return;
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         
-        osc.type = 'sine'; // ピキーンという綺麗な合成音
-        // レベルが上がるほど少し高い音にする
-        const baseFreq = 260 + (level * 35);
+        osc.type = 'sine';
+        // 気持ちいい「ポコッ」というポップ音を作成
+        const baseFreq = 300 + (level * 50);
         osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.6, audioCtx.currentTime + 0.18);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq / 2, audioCtx.currentTime + 0.1);
         
-        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.18);
+        gain.gain.setValueAtTime(0.6, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
         
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.18);
+        osc.stop(audioCtx.currentTime + 0.1);
     }
 
     function playBlackHoleSound() {
-        if (!audioCtx) return;
-        // 重厚感を出すために2つのオシレーターを組み合わせる
-        const osc1 = audioCtx.createOscillator();
-        const osc2 = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
+        if (!audioCtx || audioCtx.state === 'suspended') return;
         
-        osc1.connect(gain);
-        osc2.connect(gain);
-        gain.connect(audioCtx.destination);
+        // 1. 重低音のうなり（地響き）
+        const rumbleOsc = audioCtx.createOscillator();
+        const rumbleGain = audioCtx.createGain();
+        rumbleOsc.type = 'sawtooth';
+        rumbleOsc.frequency.setValueAtTime(40, audioCtx.currentTime);
         
-        osc1.type = 'sawtooth'; // 激しいノイズ・歪み音
-        osc1.frequency.setValueAtTime(100, audioCtx.currentTime);
-        osc1.frequency.linearRampToValueAtTime(30, audioCtx.currentTime + 1.5);
-        
-        osc2.type = 'triangle';
-        osc2.frequency.setValueAtTime(105, audioCtx.currentTime);
-        osc2.frequency.linearRampToValueAtTime(25, audioCtx.currentTime + 1.5);
-        
-        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
-        
-        osc1.start();
-        osc2.start();
-        osc1.stop(audioCtx.currentTime + 1.5);
-        osc2.stop(audioCtx.currentTime + 1.5);
-    }
+        // 低音を揺らすLFO（振動エフェクト）
+        const lfo = audioCtx.createOscillator();
+        lfo.type = 'sine';
+        lfo.frequency.setValueAtTime(8, audioCtx.currentTime);
+        const lfoGain = audioCtx.createGain();
+        lfoGain.gain.value = 10;
+        lfo.connect(lfoGain);
+        lfoGain.connect(rumbleOsc.frequency);
 
-    function playGameOverSound() {
-        if (!audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        
-        osc.type = 'sawtooth'; // 残念なゲームオーバーの下降音
-        osc.frequency.setValueAtTime(180, audioCtx.currentTime);
-        osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.8);
-        
-        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
-        
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.8);
+        rumbleOsc.connect(rumbleGain);
+        rumbleGain.connect(audioCtx.destination);
+
+        // 2. 吸い込まれるようなSF的スイープ音
+        const sweepOsc = audioCtx.createOscillator();
+        const sweepGain = audioCtx.createGain();
+        sweepOsc.type = 'sine';
+        sweepOsc.frequency.setValueAtTime(100, audioCtx.currentTime);
+        sweepOsc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 2.0);
+
+        sweepOsc.connect(sweepGain);
+        sweepGain.connect(audioCtx.destination);
+
+        // ボリュームのエンベロープ（時間経過による音量変化）
+        rumbleGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        rumbleGain.gain.linearRampToValueAtTime(0.8, audioCtx.currentTime + 0.5);
+        rumbleGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 3.0);
+
+        sweepGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        sweepGain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 1.0);
+        sweepGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 2.0);
+
+        rumbleOsc.start(audioCtx.currentTime);
+        lfo.start(audioCtx.currentTime);
+        sweepOsc.start(audioCtx.currentTime);
+
+        rumbleOsc.stop(audioCtx.currentTime + 3.0);
+        lfo.stop(audioCtx.currentTime + 3.0);
+        sweepOsc.stop(audioCtx.currentTime + 2.0);
     }
 
     // --- 物理エンジン初期化 ---
@@ -404,7 +395,7 @@
                 document.getElementById('score-display').innerText = score;
                 activeBlackHole = { x: midX, y: midY, life: 1.0, scale: 0 };
                 dropCooldown = true; 
-                playBlackHoleSound(); // ブラックホール効果音再生！
+                playBlackHoleSound(); 
                 return;
             }
 
@@ -416,7 +407,7 @@
             score += newScore;
             document.getElementById('score-display').innerText = score;
             createMergeJuice(midX, midY, PLANETS[newLevel].color);
-            playMergeSound(newLevel); // 合体効果音再生！
+            playMergeSound(newLevel); 
         });
     }
 
@@ -444,7 +435,7 @@
                 score += PLANETS[body.planetLevel].score * 2; 
                 document.getElementById('score-display').innerText = score;
                 createMergeJuice(body.position.x, body.position.y, PLANETS[body.planetLevel].color);
-                playMergeSound(body.planetLevel); // 吸い込まれる時にもポポポンと音が鳴る
+                playMergeSound(body.planetLevel); 
             }
         });
 
@@ -530,7 +521,6 @@
         if (e) e.preventDefault();
         
         spawnPlanet(pointerX, 50, currentPlanetLevel, true);
-        playDropSound(); // ドロップ時の効果音再生！
         
         dropCooldown = true;
         
@@ -556,7 +546,7 @@
 
     // --- UI表示切り替え ---
     function startGame() {
-        initAudio(); // ユーザーのボタンクリック時にオーディオコンテキストをアクティブ化
+        unlockAudio(); // スタートボタン押下時にも念のためロック解除を試みる
         
         score = 0;
         document.getElementById('score-display').innerText = score;
@@ -581,7 +571,6 @@
         gameState = 'gameover';
         document.getElementById('final-score').innerText = score;
         document.getElementById('game-over-screen').classList.remove('hidden');
-        playGameOverSound(); // ゲームオーバー効果音再生！
     }
 
     function updateNextPlanetUI(level) {
